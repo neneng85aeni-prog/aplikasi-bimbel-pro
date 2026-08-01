@@ -5,6 +5,9 @@ const clean = (v) => String(v ?? '').trim()
 const low = (v) => clean(v).toLowerCase()
 const sameId = (a, b) => clean(a) && clean(b) && clean(a) === clean(b)
 
+console.log("Data Cabang yang masuk ke aplikasi:", branches);
+console.log("Siswa yang sedang dicek:", selectedSiswa);
+
 function tanggal(value) {
   if (!value) return '-'
   const d = new Date(value)
