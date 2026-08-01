@@ -288,9 +288,7 @@ export function OrangtuaPortalTab({ user, siswa = [], perkembangan = [], absensi
     setIsMounted(true);
   }, []);
 
-  if (!isMounted) {
-    return <div style={{ padding: 20, textAlign: 'center' }}>Memuat portal...</div>;
-  }
+  
   // --- BATAS AKHIR KODE TAMBAHAN ---
 
   const [query, setQuery] = useState('')
@@ -340,7 +338,9 @@ export function OrangtuaPortalTab({ user, siswa = [], perkembangan = [], absensi
   const hadirTerakhir = absensiSiswaTerpilih[0] || perkembanganSiswa[0]
   const catatanTerbaru = perkembanganSiswa[0]
   const jadwal = selectedSiswa ? `${selectedSiswa.hari || '-'}${selectedSiswa.jam_mulai ? `, ${selectedSiswa.jam_mulai}` : ''}` : '-'
-
+if (!isMounted) {
+    return <div style={{ padding: 20, textAlign: 'center' }}>Memuat portal...</div>;
+  }
   return (
     <div className="parent-portal-page">
       <style>{`
