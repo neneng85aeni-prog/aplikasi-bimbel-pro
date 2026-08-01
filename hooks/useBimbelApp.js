@@ -386,7 +386,8 @@ export function useBimbelApp() {
         siswaRes,
         perkembanganRes,
         absensiRes,
-        pembayaranRes
+        pembayaranRes,
+        branchesRes // <--- KITA TAMBAHKAN PEMANGGILAN CABANG DI SINI
       ] = await Promise.all([
         supabase
           .from('siswa')
@@ -414,22 +415,26 @@ export function useBimbelApp() {
           .select('*')
           .eq('siswa_id', siswaId)
           .order('created_at', { ascending: false })
-          .limit(50)
+          .limit(50),
+          
+        supabase
+          .from('branches')
+          .select('*') // <--- AGAR DATA REKENING BISA KETARIK
       ]);
 
       if (siswaRes.error) throw siswaRes.error;
       if (perkembanganRes.error) throw perkembanganRes.error;
       if (absensiRes.error) throw absensiRes.error;
       if (pembayaranRes.error) throw pembayaranRes.error;
+      if (branchesRes.error) throw branchesRes.error;
 
       setSiswa(siswaRes.data ? [siswaRes.data] : []);
       setPerkembangan(perkembanganRes.data || []);
       setAbsensiSiswa(absensiRes.data || []);
       setPembayaran(pembayaranRes.data || []);
+      setBranches(branchesRes.data || []); // <--- REKENING DISIMPAN DI SINI KEMBALI
 
-      // Data berikut tidak diperlukan portal orangtua.
-      // Dikosongkan agar tidak membawa data sensitif/berat.
-      setBranches([]);
+      // Sisa data berat lainnya tetap dikosongkan agar cepat
       setPrograms([]);
       setUsers([]);
       setAbsensiKaryawan([]);
