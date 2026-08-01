@@ -228,14 +228,7 @@ function PaymentBox({ selectedSiswa, payment, branches }) {
         <b>{payment?.label || 'Informasi pembayaran'}</b>
         <p>{payment?.detail || 'Silakan pilih metode pembayaran.'}</p>
       </div>
-{/* --- KODE BANTUAN CEK MASALAH MULAI DI SINI --- */}
-      <div style={{ padding: '12px', background: '#450a0a', color: '#fca5a5', borderRadius: '10px', border: '1px solid #7f1d1d', margin: '10px 0', fontSize: '13px' }}>
-        <b>🔍 Radar Deteksi Data Bank:</b><br/>
-        1. ID Cabang Siswa ini: {selectedSiswa?.branch_id ? selectedSiswa.branch_id : 'KOSONG'}<br/>
-        2. Data Cabang dari Server: {branches && branches.length > 0 ? branches.length + ' data masuk' : 'KOSONG'}<br/>
-        3. Relasi Cabang Bawaan: {(selectedSiswa?.branches || selectedSiswa?.branch) ? 'ADA' : 'KOSONG'}
-      </div>
-      {/* --- KODE BANTUAN BERAKHIR --- */}
+
       <div className="parent-payment-total">
         <span>Nominal pembayaran</span>
         <strong>{nominal ? formatRupiah(nominal) : 'Hubungi admin'}</strong>
