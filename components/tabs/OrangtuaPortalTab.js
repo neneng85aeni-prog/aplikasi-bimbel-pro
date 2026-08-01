@@ -1,12 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { formatRupiah } from '../../lib/format'
 
 const clean = (v) => String(v ?? '').trim()
 const low = (v) => clean(v).toLowerCase()
 const sameId = (a, b) => clean(a) && clean(b) && clean(a) === clean(b)
 
-console.log("Data Cabang yang masuk ke aplikasi:", branches);
-console.log("Siswa yang sedang dicek:", selectedSiswa);
 
 function tanggal(value) {
   if (!value) return '-'
@@ -282,6 +280,19 @@ function PaymentBox({ selectedSiswa, payment, branches }) {
 }
 
 export function OrangtuaPortalTab({ user, siswa = [], perkembangan = [], absensiSiswa = [], pembayaran = [], branches = [] }) {
+  
+  // --- MULAI TAMBAHKAN KODE INI ---
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return <div style={{ padding: 20, textAlign: 'center' }}>Memuat portal...</div>;
+  }
+  // --- BATAS AKHIR KODE TAMBAHAN ---
+
   const [query, setQuery] = useState('')
   const [selectedSiswaId, setSelectedSiswaId] = useState('')
   const [openSections, setOpenSections] = useState(['ringkasan', 'bayar'])
