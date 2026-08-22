@@ -1,16 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react';
 
-export function LaporanGuruTab({ users, perkembanganTampil, siswaTampil, absensiSiswa }) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+export function LaporanGuruTab({ users, perkembanganTampil, siswaTampil }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
-  const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
-
-  const start = startDate || firstDay;
-  const end = endDate || lastDay;
+  // Perbaikan: Menggunakan toLocaleDateString('en-CA') agar format YYYY-MM-DD 
+  // mengikuti timezone lokal (WIB) dan tidak mundur ke UTC.
+  useEffect(() => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toLocaleDateString('en-CA');
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toLocaleDateString('en-CA');
+    
+    setStartDate(firstDay);
+    setEndDate(lastDay);
+  }, []);
 
   const laporanGuru = users
     .filter(u => u.akses?.toLowerCase() === 'guru')
@@ -22,17 +26,16 @@ export function LaporanGuruTab({ users, perkembanganTampil, siswaTampil, absensi
       const uniqueSiswaIds = (perkembanganTampil || [])
         .filter(p => {
           const matchGuru = p.guru_id === guru.id; 
-          const matchDate = p.tanggal >= start && p.tanggal <= end;
+          const matchDate = p.tanggal >= startDate && p.tanggal <= endDate;
           return matchGuru && matchDate;
         })
         .map(p => p.siswa_id);
       const totalSiswaUnik = [...new Set(uniqueSiswaIds)].length;
 
-      // C. TOTAL SESI (Sesuai kolom 'guru_handle_id' di tabel absensi_siswa)
-      // C. TOTAL SESI (Sekarang dihitung langsung dari jumlah baris perkembangan)
+      // C. TOTAL SESI (Dihitung langsung dari jumlah baris perkembangan)
       const totalSesi = (perkembanganTampil || []).filter(p => {
         const matchGuru = p.guru_id === guru.id; 
-        const matchDate = p.tanggal >= start && p.tanggal <= end;
+        const matchDate = p.tanggal >= startDate && p.tanggal <= endDate;
         return matchGuru && matchDate;
       }).length;
 
@@ -51,14 +54,14 @@ export function LaporanGuruTab({ users, perkembanganTampil, siswaTampil, absensi
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
         <div>
           <h2 className="section-title" style={{ margin: 0 }}>Laporan Performa & Sesi Guru</h2>
-          <p className="text-muted" style={{ fontSize: '13px' }}>Periode: <b>{start}</b> s/d <b>{end}</b></p>
+          <p className="text-muted" style={{ fontSize: '13px' }}>Periode: <b>{startDate}</b> s/d <b>{endDate}</b></p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-             <input type="date" value={start} onChange={(e) => setStartDate(e.target.value)} style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none', fontSize: '13px' }} />
+             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none', fontSize: '13px' }} />
              <span style={{ fontSize: '12px', color: '#94a3b8' }}>-</span>
-             <input type="date" value={end} onChange={(e) => setEndDate(e.target.value)} style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none', fontSize: '13px' }} />
+             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none', fontSize: '13px' }} />
           </div>
           <input 
             type="text" 
