@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase'; 
 
-export function LaporanGuruTab({ users, perkembanganTampil, siswaTampil }) {
+export function LaporanGuruTab({ users, siswaTampil }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  const [laporanRPC, setLaporanRPC] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Perbaikan: Menggunakan toLocaleDateString('en-CA') agar format YYYY-MM-DD 
-  // mengikuti timezone lokal (WIB) dan tidak mundur ke UTC.
   useEffect(() => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toLocaleDateString('en-CA');
@@ -16,35 +18,45 @@ export function LaporanGuruTab({ users, perkembanganTampil, siswaTampil }) {
     setEndDate(lastDay);
   }, []);
 
+  useEffect(() => {
+    async function fetchLaporanDariServer() {
+      if (!startDate || !endDate) return;
+      
+      setIsLoading(true);
+      try {
+        // Memanggil fungsi SQL (RPC) buatan kita di database
+        const { data, error } = await supabase.rpc('get_laporan_guru', {
+          p_start_date: startDate,
+          p_end_date: endDate
+        });
+
+        if (error) throw error;
+        setLaporanRPC(data || []);
+      } catch (err) {
+        console.error("Gagal menarik data RPC laporan:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchLaporanDariServer();
+  }, [startDate, endDate]);
+
   const laporanGuru = users
     .filter(u => u.akses?.toLowerCase() === 'guru')
     .map(guru => {
-      // A. TOTAL TERDAFTAR (Sesuai kolom 'guru_id' di tabel siswa)
+      // Terdaftar tetap dihitung dari database siswa (siswaTampil)
       const terdaftar = (siswaTampil || []).filter(s => s.guru_id === guru.id).length;
 
-      // B. TOTAL SISWA UNIK (Sesuai kolom 'guru_id' di tabel perkembangan)
-      const uniqueSiswaIds = (perkembanganTampil || [])
-        .filter(p => {
-          const matchGuru = p.guru_id === guru.id; 
-          const matchDate = p.tanggal >= startDate && p.tanggal <= endDate;
-          return matchGuru && matchDate;
-        })
-        .map(p => p.siswa_id);
-      const totalSiswaUnik = [...new Set(uniqueSiswaIds)].length;
-
-      // C. TOTAL SESI (Dihitung langsung dari jumlah baris perkembangan)
-      const totalSesi = (perkembanganTampil || []).filter(p => {
-        const matchGuru = p.guru_id === guru.id; 
-        const matchDate = p.tanggal >= startDate && p.tanggal <= endDate;
-        return matchGuru && matchDate;
-      }).length;
+      // Ambil hasil hitungan total dari RPC
+      const stats = laporanRPC.find(r => r.guru_id === guru.id) || { total_sesi: 0, siswa_unik: 0 };
 
       return {
         nama: guru.nama,
         terdaftar: terdaftar,
-        siswaUnik: totalSiswaUnik,
-        totalSesi: totalSesi,
-        selisih: terdaftar - totalSiswaUnik
+        siswaUnik: Number(stats.siswa_unik),
+        totalSesi: Number(stats.total_sesi),
+        selisih: terdaftar - Number(stats.siswa_unik)
       }
     })
     .filter(g => g.nama.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -73,41 +85,45 @@ export function LaporanGuruTab({ users, perkembanganTampil, siswaTampil }) {
         </div>
       </div>
 
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Nama Guru</th>
-              <th style={{ textAlign: 'center' }}>Siswa Terdaftar (Profil)</th>
-              <th style={{ textAlign: 'center' }}>Siswa Aktif (Unik)</th>
-              <th style={{ textAlign: 'center', background: 'rgba(59, 130, 246, 0.1)' }}>Total Sesi (Aktif)</th>
-              <th style={{ textAlign: 'center' }}>Status Keaktifan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {laporanGuru.map((g, i) => (
-              <tr key={i}>
-                <td><b>{g.nama}</b></td>
-                <td style={{ textAlign: 'center' }}>{g.terdaftar} Anak</td>
-                <td style={{ textAlign: 'center' }}>{g.siswaUnik} Anak</td>
-                <td style={{ textAlign: 'center', fontSize: '18px', fontWeight: 'bold', color: '#60a5fa' }}>
-                  {g.totalSesi} <span style={{fontSize: '12px'}}>Sesi</span>
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  {g.siswaUnik >= g.terdaftar && g.terdaftar > 0 ? (
-                    <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Full Output</span>
-                  ) : (
-                    <span style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>{g.selisih} Belum Terjamah</span>
-                  )}
-                </td>
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '30px', color: '#60a5fa' }}>Memuat data laporan...</div>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Guru</th>
+                <th style={{ textAlign: 'center' }}>Siswa Terdaftar (Profil)</th>
+                <th style={{ textAlign: 'center' }}>Siswa Aktif (Unik)</th>
+                <th style={{ textAlign: 'center', background: 'rgba(59, 130, 246, 0.1)' }}>Total Sesi (Aktif)</th>
+                <th style={{ textAlign: 'center' }}>Status Keaktifan</th>
               </tr>
-            ))}
-            {laporanGuru.length === 0 && (
-              <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>Tidak ada data guru untuk periode ini.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {laporanGuru.map((g, i) => (
+                <tr key={i}>
+                  <td><b>{g.nama}</b></td>
+                  <td style={{ textAlign: 'center' }}>{g.terdaftar} Anak</td>
+                  <td style={{ textAlign: 'center' }}>{g.siswaUnik} Anak</td>
+                  <td style={{ textAlign: 'center', fontSize: '18px', fontWeight: 'bold', color: '#60a5fa' }}>
+                    {g.totalSesi} <span style={{fontSize: '12px'}}>Sesi</span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    {g.siswaUnik >= g.terdaftar && g.terdaftar > 0 ? (
+                      <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Full Output</span>
+                    ) : (
+                      <span style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>{g.selisih} Belum Terjamah</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {laporanGuru.length === 0 && (
+                <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>Tidak ada data guru untuk periode ini.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
