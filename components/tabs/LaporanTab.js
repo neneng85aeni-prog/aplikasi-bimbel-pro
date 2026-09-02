@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react' // Tambahkan useEffect
 import { formatRupiah, formatTanggal } from '../../lib/format'
+import { fetchRingkasanLaporan } from './data' // <-- Sesuaikan lokasi file data.js jika berbeda folder
 
 export function LaporanTab({ 
   financeSummary, pembayaran = [], branches = [], selectedBranchId, setSelectedBranchId, 
@@ -15,6 +16,36 @@ export function LaporanTab({
   const [selectedMonth, setSelectedMonth] = useState(''); // Format: YYYY-MM
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  // State untuk menyimpan total akurat dari database
+  const [ringkasanDb, setRingkasanDb] = useState(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+
+  // Otomatis minta ringkasan akurat ke Supabase setiap kali Bulan / Tanggal / Cabang diganti
+  useEffect(() => {
+    let start = startDate;
+    let end = endDate;
+
+    // Jika filter bulan yang dipilih (misal: "2026-08")
+    if (selectedMonth) {
+      const [year, month] = selectedMonth.split('-');
+      const lastDay = new Date(Number(year), Number(month), 0).getDate();
+      start = `${selectedMonth}-01`;
+      end = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+    }
+
+    // Jika ada tanggal/bulan yang dipilih, ambil data akurat via RPC
+    if (start && end) {
+      setLoadingSummary(true);
+      fetchRingkasanLaporan(start, end, selectedBranchId)
+        .then((result) => {
+          if (result) setRingkasanDb(result);
+        })
+        .finally(() => setLoadingSummary(false));
+    } else {
+      // Jika tidak ada filter (tampilan default), reset ke hitungan lokal
+      setRingkasanDb(null);
+    }
+  }, [selectedMonth, startDate, endDate, selectedBranchId, pembayaran]);
 
   // === 1. FILTER TRANSAKSI BERDASARKAN PERIODE & SEARCH ===
   const filteredData = useMemo(() => {
@@ -128,15 +159,19 @@ export function LaporanTab({
         {/* KOTAK 2: TOTAL PERIODE (KALENDER) */}
         <div className="glass-card" style={{ padding: '12px', borderLeft: '3px solid #f59e0b' }}>
           <p style={{ fontSize: '11px', margin: '0 0 8px 0', fontWeight: 'bold', color: '#94a3b8' }}>
-            {startDate || endDate ? 'TOTAL PERIODE TERPILIH' : 'TOTAL KESELURUHAN'}
+            {startDate || endDate || selectedMonth ? 'TOTAL PERIODE TERPILIH' : 'TOTAL KESELURUHAN'}
           </p>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
             <span style={{fontSize: '12px'}}>Masuk:</span> 
-            <b style={{fontSize: '12px', color: '#10b981'}}>{formatRupiah(stats.periodeMasuk)}</b>
+            <b style={{fontSize: '12px', color: '#10b981'}}>
+              {formatRupiah(ringkasanDb ? ringkasanDb.total_masuk : stats.periodeMasuk)}
+            </b>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{fontSize: '12px'}}>Keluar:</span> 
-            <b style={{fontSize: '12px', color: '#ef4444'}}>{formatRupiah(stats.periodeKeluar)}</b>
+            <b style={{fontSize: '12px', color: '#ef4444'}}>
+              {formatRupiah(ringkasanDb ? ringkasanDb.total_keluar : stats.periodeKeluar)}
+            </b>
           </div>
         </div>
 
@@ -144,15 +179,24 @@ export function LaporanTab({
         {canSeeStats && (
           <div className="glass-card" style={{ padding: '12px', borderLeft: '3px solid #10b981', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <p style={{ fontSize: '11px', margin: '0 0 5px 0', fontWeight: 'bold', color: '#94a3b8' }}>LABA BERSIH (PERIODE)</p>
-            <b style={{ fontSize: '15px', color: stats.periodeMasuk - stats.periodeKeluar >= 0 ? '#10b981' : '#ef4444' }}>
-              {formatRupiah(stats.periodeMasuk - stats.periodeKeluar)}
-            </b>
-            <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '4px' }}>
-              {filteredData.length} Transaksi terfilter
-            </span>
+            {loadingSummary ? (
+              <span style={{ fontSize: '13px', color: '#94a3b8' }}>Menghitung...</span>
+            ) : (
+              <>
+                <b style={{ 
+                  fontSize: '15px', 
+                  color: (ringkasanDb ? ringkasanDb.laba_bersih : (stats.periodeMasuk - stats.periodeKeluar)) >= 0 ? '#10b981' : '#ef4444' 
+                }}>
+                  {formatRupiah(ringkasanDb ? ringkasanDb.laba_bersih : (stats.periodeMasuk - stats.periodeKeluar))}
+                </b>
+                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '4px' }}>
+                  {ringkasanDb ? ringkasanDb.total_transaksi : filteredData.length} Transaksi terfilter
+                </span>
+              </>
+            )}
           </div>
         )}
-      </div>
+          </div>
 
       <div className="glass-card">
         {/* ... (Sisa bagian Riwayat Transaksi, Table, dan Modal tetap sama seperti kode Mbak) ... */}
