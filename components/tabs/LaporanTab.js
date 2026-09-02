@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react' // Tambahkan useEffect
 import { formatRupiah, formatTanggal } from '../../lib/format'
-import { fetchRingkasanLaporan } from './data' // <-- Sesuaikan lokasi file data.js jika berbeda folder
+import { fetchRingkasanLaporan } from '../../lib/data' // <-- Sesuaikan lokasi file data.js jika berbeda folder
 
 export function LaporanTab({ 
   financeSummary, pembayaran = [], branches = [], selectedBranchId, setSelectedBranchId, 
